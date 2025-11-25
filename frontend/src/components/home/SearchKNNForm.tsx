@@ -1,0 +1,147 @@
+import React, { useState } from 'react';
+import Card from '../layout/Card';
+import SectionHeader from '../layout/SectionHeader';
+import { theme } from '../../styles/theme';
+
+const API_URL = 'http://localhost:8080';
+
+const SearchKNNForm: React.FC = () => {
+    const [queryVector, setQueryVector] = useState('');
+    const [k, setK] = useState(5);
+    const [results, setResults] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleSearch = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        setResults([]);
+
+        try {
+            const vectorData = JSON.parse(queryVector);
+
+            const res = await fetch(`${API_URL}/search`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    vector: vectorData,
+                    top_k: k,
+                }),
+            });
+
+            if (!res.ok) throw new Error('Search failed');
+            const data = await res.json();
+            setResults(data);
+        } catch (err: any) {
+            setError(err.message || 'Invalid JSON format');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <Card>
+            <SectionHeader title="Search k-NN" subtitle="Find nearest neighbors" />
+            <form onSubmit={handleSearch}>
+                <div style={{ marginBottom: theme.spacing.lg }}>
+                    <label style={{ display: 'block', marginBottom: theme.spacing.xs, color: theme.colors.text.secondary }}>Query Vector (JSON Array)</label>
+                    <textarea
+                        value={queryVector}
+                        onChange={(e) => setQueryVector(e.target.value)}
+                        required
+                        placeholder="[0.1, 0.2, 0.3]"
+                        style={{
+                            width: '100%',
+                            padding: theme.spacing.sm,
+                            borderRadius: theme.radii.md,
+                            border: `1px solid ${theme.colors.border}`,
+                            background: theme.colors.surface,
+                            minHeight: '80px',
+                            fontFamily: 'monospace',
+                        }}
+                    />
+                </div>
+
+                <div style={{ marginBottom: theme.spacing.lg }}>
+                    <label style={{ display: 'block', marginBottom: theme.spacing.xs, color: theme.colors.text.secondary }}>K (Number of neighbors)</label>
+                    <input
+                        type="number"
+                        value={k}
+                        onChange={(e) => setK(parseInt(e.target.value))}
+                        min="1"
+                        max="100"
+                        style={{
+                            width: '100%',
+                            padding: theme.spacing.sm,
+                            borderRadius: theme.radii.md,
+                            border: `1px solid ${theme.colors.border}`,
+                            background: theme.colors.surface,
+                        }}
+                    />
+                </div>
+
+                <button
+                    type="submit"
+                    disabled={loading}
+                    style={{
+                        background: theme.colors.primary.base,
+                        color: '#fff',
+                        padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+                        borderRadius: theme.radii.md,
+                        border: 'none',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        opacity: loading ? 0.7 : 1,
+                        fontWeight: theme.typography.weight.medium,
+                    }}
+                >
+                    {loading ? 'Searching...' : 'Search'}
+                </button>
+
+                {error && (
+                    <div style={{
+                        marginTop: theme.spacing.md,
+                        padding: theme.spacing.sm,
+                        borderRadius: theme.radii.md,
+                        background: theme.colors.error.light,
+                        color: theme.colors.error.text,
+                    }}>
+                        {error}
+                    </div>
+                )}
+            </form>
+
+            {results.length > 0 && (
+                <div style={{ marginTop: theme.spacing.xl }}>
+                    <h3 style={{ fontSize: theme.typography.size.lg, marginBottom: theme.spacing.md }}>Results</h3>
+                    <div style={{ display: 'grid', gap: theme.spacing.md }}>
+                        {results.map((result, idx) => (
+                            <div key={idx} style={{
+                                padding: theme.spacing.md,
+                                background: theme.colors.surface,
+                                borderRadius: theme.radii.md,
+                                border: `1px solid ${theme.colors.border}`,
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: theme.spacing.xs }}>
+                                    <span style={{ fontWeight: 'bold' }}>ID: {result.id}</span>
+                                    <span style={{ color: theme.colors.primary.base }}>Score: {result.score.toFixed(4)}</span>
+                                </div>
+                                {result.metadata && (
+                                    <pre style={{
+                                        margin: 0,
+                                        fontSize: theme.typography.size.xs,
+                                        color: theme.colors.text.secondary,
+                                    }}>
+                                        {JSON.stringify(result.metadata, null, 2)}
+                                    </pre>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </Card>
+    );
+};
+
+export default SearchKNNForm;
