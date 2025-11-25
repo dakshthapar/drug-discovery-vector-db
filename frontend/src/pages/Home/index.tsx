@@ -10,7 +10,7 @@ const Home: React.FC = () => {
     return (
         <PageContainer>
             <div style={{ textAlign: 'center', marginBottom: theme.spacing.section }}>
-                <h1 style={{ fontSize: theme.typography.size.display, fontWeight: theme.typography.weight.bold }}>
+                <h1 style={{ fontSize: theme.typography.size.display, fontWeight: theme.typography.weight.bold, color: theme.colors.text.primary }}>
                     Vector Database
                 </h1>
                 <p style={{ color: theme.colors.text.secondary }}>

@@ -59,6 +59,7 @@ const SearchKNNForm: React.FC = () => {
                             background: theme.colors.surface,
                             minHeight: '80px',
                             fontFamily: 'monospace',
+                            color: theme.colors.text.primary,
                         }}
                     />
                 </div>
@@ -77,6 +78,7 @@ const SearchKNNForm: React.FC = () => {
                             borderRadius: theme.radii.md,
                             border: `1px solid ${theme.colors.border}`,
                             background: theme.colors.surface,
+                            color: theme.colors.text.primary,
                         }}
                     />
                 </div>
