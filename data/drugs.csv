@@ -1,0 +1,21 @@
+name,smiles,indication
+Aspirin,CC(=O)Oc1ccccc1C(=O)O,"Pain relief, anti-inflammatory"
+Ibuprofen,CC(C)Cc1ccc(cc1)C(C)C(=O)O,"Pain relief, anti-inflammatory"
+Acetaminophen,CC(=O)Nc1ccc(O)cc1,"Pain relief, fever reduction"
+Caffeine,CN1C=NC2=C1C(=O)N(C(=O)N2C)C,Stimulant
+Metformin,CN(C)C(=N)NC(=N)N,Type 2 diabetes
+Atorvastatin,CC(C)c1c(C(=O)Nc2ccccc2)c(c(c(c1)c1ccc(F)cc1)c1ccccc1)C(=O)O,High cholesterol
+Lisinopril,NCCCC[C@H](N[C@@H](CCc1ccccc1)C(=O)O)C(=O)N1CCC[C@H]1C(=O)O,High blood pressure
+Levothyroxine,NC(Cc1cc(I)c(Oc2cc(I)c(O)c(I)c2)c(I)c1)C(=O)O,Hypothyroidism
+Amlodipine,CCOC(=O)C1=C(COCCN)NC(C)=C(C(=O)OC)C1c1ccccc1Cl,High blood pressure
+Omeprazole,COc1ccc2nc(S(=O)Cc3ncc(C)c(OC)c3C)[nH]c2c1,"Acid reflux, ulcers"
+Simvastatin,CCC(C)(C)C(=O)O[C@H]1C[C@@H](C)C=C2C=C[C@H](C)[C@H](CC[C@@H]3C[C@@H](O)CC(=O)O3)[C@@H]12,High cholesterol
+Warfarin,CC(=O)CC(c1ccccc1)c1c(O)c2ccccc2oc1=O,Blood thinner
+Gabapentin,NCC1(CC(=O)O)CCCCC1,"Nerve pain, seizures"
+Hydrochlorothiazide,NS(=O)(=O)c1cc2c(cc1Cl)NCNS2(=O)=O,"High blood pressure, edema"
+Losartan,CCCCc1nc(Cl)c(CO)n1Cc1ccc(cc1)c1ccccc1c1nnn[nH]1,High blood pressure
+Albuterol,CC(C)(C)NCC(O)c1ccc(O)c(CO)c1,"Asthma, bronchospasm"
+Furosemide,NS(=O)(=O)c1cc(C(=O)O)c(NCc2ccco2)cc1Cl,"Edema, heart failure"
+Prednisone,CC12CCC(=O)C=C1CCC1C2CCC2(C)C(O)CCC12,"Inflammation, immune disorders"
+Ciprofloxacin,O=C(O)c1cn(C2CC2)c2cc(N3CCNCC3)c(F)cc2c1=O,Bacterial infections
+Amoxicillin,CC1(C)SC2C(NC(=O)C(N)c3ccc(O)cc3)C(=O)N2C1C(=O)O,Bacterial infections
