@@ -5,15 +5,26 @@ import { Activity, Database, Layers, Clock } from 'lucide-react';
 
 const API_URL = 'http://localhost:8080';
 
-const StatsPanel: React.FC = () => {
+interface StatsPanelProps {
+    collection: string;
+}
+
+const StatsPanel: React.FC<StatsPanelProps> = ({ collection }) => {
     const [stats, setStats] = useState<any>(null);
+    const [collectionCount, setCollectionCount] = useState<number>(0);
     const [loading, setLoading] = useState(true);
 
     const fetchStats = async () => {
         try {
-            const res = await fetch(`${API_URL}/stats`);
-            const data = await res.json();
-            setStats(data);
+            // Fetch stats for current collection
+            const statsRes = await fetch(`${API_URL}/stats?collection=${encodeURIComponent(collection)}`);
+            const statsData = await statsRes.json();
+            setStats(statsData);
+
+            // Fetch total collection count
+            const collectionsRes = await fetch(`${API_URL}/collections`);
+            const collectionsData = await collectionsRes.json();
+            setCollectionCount(collectionsData.collections?.length || 0);
         } catch (err) {
             console.error('Failed to fetch stats', err);
         } finally {
@@ -25,15 +36,15 @@ const StatsPanel: React.FC = () => {
         fetchStats();
         const interval = setInterval(fetchStats, 5000);
         return () => clearInterval(interval);
-    }, []);
+    }, [collection]);
 
     if (loading) return <div>Loading stats...</div>;
 
     const items = [
-        { label: 'Total Vectors', value: stats?.vector_count || 0, icon: Database },
-        { label: 'Dimension', value: stats?.dimension || 0, icon: Layers },
-        { label: 'Collections', value: 1, icon: Activity }, // Placeholder
-        { label: 'Uptime', value: '99.9%', icon: Clock }, // Placeholder
+        { label: 'Total Vectors', value: stats?.num_vectors || 0, icon: Database },
+        { label: 'Dimension', value: stats?.dim || 0, icon: Layers },
+        { label: 'Collections', value: collectionCount, icon: Activity },
+        { label: 'Current Collection', value: collection, icon: Clock },
     ];
 
     return (

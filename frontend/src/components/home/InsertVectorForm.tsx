@@ -5,7 +5,11 @@ import { theme } from '../../styles/theme';
 
 const API_URL = 'http://localhost:8080';
 
-const InsertVectorForm: React.FC = () => {
+interface InsertVectorFormProps {
+    collection: string;
+}
+
+const InsertVectorForm: React.FC<InsertVectorFormProps> = ({ collection }) => {
     const [id, setId] = useState('');
     const [vector, setVector] = useState('');
     const [metadata, setMetadata] = useState('');
@@ -21,7 +25,7 @@ const InsertVectorForm: React.FC = () => {
             const vectorData = JSON.parse(vector);
             const metadataData = metadata ? JSON.parse(metadata) : null;
 
-            const res = await fetch(`${API_URL}/vectors`, {
+            const res = await fetch(`${API_URL}/vectors?collection=${encodeURIComponent(collection)}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -31,7 +35,10 @@ const InsertVectorForm: React.FC = () => {
                 }),
             });
 
-            if (!res.ok) throw new Error('Failed to insert vector');
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ error: 'Failed to insert vector' }));
+                throw new Error(errorData.error || 'Failed to insert vector');
+            }
 
             setStatus({ type: 'success', msg: 'Vector inserted successfully!' });
             setId('');

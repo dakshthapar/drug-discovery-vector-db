@@ -5,7 +5,11 @@ import { theme } from '../../styles/theme';
 
 const API_URL = 'http://localhost:8080';
 
-const SearchKNNForm: React.FC = () => {
+interface SearchKNNFormProps {
+    collection: string;
+}
+
+const SearchKNNForm: React.FC<SearchKNNFormProps> = ({ collection }) => {
     const [queryVector, setQueryVector] = useState('');
     const [k, setK] = useState(5);
     const [results, setResults] = useState<any[]>([]);
@@ -21,18 +25,19 @@ const SearchKNNForm: React.FC = () => {
         try {
             const vectorData = JSON.parse(queryVector);
 
-            const res = await fetch(`${API_URL}/search`, {
+            const res = await fetch(`${API_URL}/search?collection=${encodeURIComponent(collection)}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     vector: vectorData,
                     top_k: k,
+                    metric: "cosine",
                 }),
             });
 
             if (!res.ok) throw new Error('Search failed');
             const data = await res.json();
-            setResults(data);
+            setResults(data.results || []);
         } catch (err: any) {
             setError(err.message || 'Invalid JSON format');
         } finally {
@@ -125,12 +130,20 @@ const SearchKNNForm: React.FC = () => {
                                 border: `1px solid ${theme.colors.border}`,
                             }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: theme.spacing.xs }}>
-                                    <span style={{ fontWeight: 'bold' }}>ID: {result.id}</span>
+                                    <span style={{ fontWeight: 'bold', color: theme.colors.text.primary }}>ID: {result.id}</span>
                                     <span style={{ color: theme.colors.primary.base }}>Score: {result.score.toFixed(4)}</span>
                                 </div>
-                                {result.metadata && (
+                                {result.vector && (
+                                    <div style={{ marginTop: theme.spacing.xs }}>
+                                        <div style={{ fontSize: theme.typography.size.sm, color: theme.colors.text.secondary }}>
+                                            Vector ({result.vector.length}D): [{result.vector.slice(0, 5).map((v: number) => v.toFixed(3)).join(', ')}
+                                            {result.vector.length > 5 ? `, ... ${result.vector.length - 5} more` : ''}]
+                                        </div>
+                                    </div>
+                                )}
+                                {result.metadata && Object.keys(result.metadata).length > 0 && (
                                     <pre style={{
-                                        margin: 0,
+                                        margin: `${theme.spacing.xs} 0 0 0`,
                                         fontSize: theme.typography.size.xs,
                                         color: theme.colors.text.secondary,
                                     }}>

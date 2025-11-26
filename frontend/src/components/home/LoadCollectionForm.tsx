@@ -5,7 +5,11 @@ import { theme } from '../../styles/theme';
 
 const API_URL = 'http://localhost:8080';
 
-const LoadCollectionForm: React.FC = () => {
+interface LoadCollectionFormProps {
+    collection: string;
+}
+
+const LoadCollectionForm: React.FC<LoadCollectionFormProps> = ({ collection }) => {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
 

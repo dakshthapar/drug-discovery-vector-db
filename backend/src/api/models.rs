@@ -27,6 +27,7 @@ pub struct SearchRequest {
 pub struct SearchResult {
     pub id: String,
     pub score: f32,
+    pub vector: Vec<f32>,
     pub metadata: HashMap<String, String>,
 }
 
@@ -71,4 +72,30 @@ pub struct DocumentResponse {
     pub id: String,
     pub metadata: HashMap<String, String>,
     // Vector is optional, maybe hidden by default
+}
+
+// Collection-related models
+
+#[derive(Deserialize)]
+pub struct CreateCollectionRequest {
+    pub name: String,
+    pub dimension: usize,
+}
+
+#[derive(Serialize)]
+pub struct CollectionInfo {
+    pub name: String,
+    pub dimension: usize,
+    pub num_vectors: usize,
+    pub created_at: u64,
+}
+
+#[derive(Serialize)]
+pub struct ListCollectionsResponse {
+    pub collections: Vec<CollectionInfo>,
+}
+
+#[derive(Deserialize)]
+pub struct CollectionQuery {
+    pub collection: Option<String>,
 }

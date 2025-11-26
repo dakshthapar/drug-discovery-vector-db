@@ -34,9 +34,11 @@ pub async fn search_vectors(
     
     let search_results: Vec<SearchResult> = results.into_iter().map(|(id, score)| {
         let doc = store.get(&id).unwrap();
+        let vector = store.get_vector(&id).unwrap_or_default();
         SearchResult {
             id,
             score,
+            vector,
             metadata: doc.metadata.clone(),
         }
     }).collect();

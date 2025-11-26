@@ -72,6 +72,14 @@ impl VectorStore {
         self.id_to_index.get(id).map(|&idx| &self.docs[idx])
     }
 
+    pub fn get_vector(&self, id: &str) -> Option<Vec<f32>> {
+        self.id_to_index.get(id).map(|&idx| {
+            let start = idx * self.dim;
+            let end = start + self.dim;
+            self.vectors[start..end].to_vec()
+        })
+    }
+
     pub fn search(&self, query: &[f32], k: usize, metric: Metric) -> Vec<(String, f32)> {
         if query.len() != self.dim {
             return Vec::new();
