@@ -19,8 +19,8 @@ pub struct EmbeddingService {
 
 impl EmbeddingService {
     pub fn new(store: SharedVectorStore) -> Result<Self> {
-        let api_key = env::var("OPENAI_API_KEY")
-            .context("OPENAI_API_KEY must be set")?;
+        let api_key = env::var("GEMINI_API_KEY")
+            .context("GEMINI_API_KEY must be set")?;
         
         Ok(Self {
             client: Client::new(),
@@ -34,32 +34,50 @@ impl EmbeddingService {
             return Err(anyhow!("Text cannot be empty"));
         }
 
-        let request = EmbeddingRequest {
-            input: text.to_string(),
-            model: model.to_string(),
-        };
+        // Gemini API endpoint for embeddings
+        let url = format!(
+            "https://generativelanguage.googleapis.com/v1beta/models/{}:embedContent?key={}",
+            model, self.api_key
+        );
+
+        let request_body = json!({
+            "content": {
+                "parts": [{
+                    "text": text
+                }]
+            }
+        });
 
         let response = self.client
-            .post("https://api.openai.com/v1/embeddings")
-            .header("Authorization", format!("Bearer {}", self.api_key))
+            .post(&url)
             .header("Content-Type", "application/json")
-            .json(&request)
+            .json(&request_body)
             .send()
             .await
-            .context("Failed to send request to OpenAI")?;
+            .context("Failed to send request to Gemini API")?;
 
         if !response.status().is_success() {
             let error_text = response.text().await.unwrap_or_default();
-            return Err(anyhow!("OpenAI API error: {}", error_text));
+            return Err(anyhow!("Gemini API error: {}", error_text));
         }
 
-        let embedding_response: EmbeddingResponse = response.json().await
-            .context("Failed to parse OpenAI response")?;
+        let response_json: Value = response.json().await
+            .context("Failed to parse Gemini response")?;
 
-        if let Some(data) = embedding_response.data.first() {
-            Ok(data.embedding.clone())
+        // Extract embedding from Gemini response
+        if let Some(embedding) = response_json["embedding"]["values"].as_array() {
+            let vector: Vec<f32> = embedding
+                .iter()
+                .filter_map(|v| v.as_f64().map(|f| f as f32))
+                .collect();
+            
+            if vector.is_empty() {
+                return Err(anyhow!("Empty embedding returned from Gemini"));
+            }
+            
+            Ok(vector)
         } else {
-            Err(anyhow!("No embedding data returned"))
+            Err(anyhow!("Invalid response format from Gemini API"))
         }
     }
 
@@ -70,31 +88,27 @@ impl EmbeddingService {
         model: String,
         metadata: Option<Value>,
     ) -> Result<(usize, String)> {
-        // 1. Generate embedding
         let vector = self.embed_text(&text, &model).await?;
         let dimension = vector.len();
 
-        // 2. Prepare metadata
-        let mut meta_map = HashMap::new();
-        if let Some(meta) = metadata {
-            if let Value::Object(map) = meta {
-                for (k, v) in map {
-                    if let Value::String(s) = v {
-                        meta_map.insert(k, s);
-                    } else {
-                        meta_map.insert(k, v.to_string());
-                    }
-                }
+        // Convert metadata from Option<Value> to HashMap<String, String>
+        let metadata_map = if let Some(meta) = metadata {
+            if let Some(obj) = meta.as_object() {
+                obj.iter()
+                    .filter_map(|(k, v)| {
+                        v.as_str().map(|s| (k.clone(), s.to_string()))
+                    })
+                    .collect()
+            } else {
+                HashMap::new()
             }
-        }
-        // Always store the original text in metadata for reference
-        meta_map.insert("text".to_string(), text);
-        meta_map.insert("model".to_string(), model);
+        } else {
+            HashMap::new()
+        };
 
-        // 3. Insert into store
         let mut store = self.store.write();
-        store.insert(id.clone(), vector, meta_map)
-            .map_err(|e| anyhow!("Failed to insert into vector store: {}", e))?;
+        store.insert(id.clone(), vector, metadata_map)
+            .map_err(|e| anyhow!("Failed to insert vector: {}", e))?;
 
         Ok((dimension, id))
     }
@@ -104,34 +118,24 @@ impl EmbeddingService {
         query: String,
         k: usize,
     ) -> Result<Vec<SemanticSearchResult>> {
-        // 1. Generate embedding for query
-        // Use default model or infer from store? For now use default small model
-        // Ideally we should know which model was used for the DB.
-        // Assuming "text-embedding-3-small" for now as per requirements default.
-        let model = "text-embedding-3-small"; 
-        let vector = self.embed_text(&query, model).await?;
+        // Use default Gemini embedding model
+        let query_vector = self.embed_text(&query, "text-embedding-004").await?;
 
-        // 2. Search in store
         let store = self.store.read();
-        let results = store.search(&vector, k, Metric::Cosine);
+        let results = store.search(&query_vector, k, Metric::Cosine);
 
-        // 3. Format results
         let mut search_results = Vec::new();
         for (id, score) in results {
-            let doc = store.get(&id);
-            let metadata = doc.map(|d| {
-                let mut map = serde_json::Map::new();
-                for (k, v) in &d.metadata {
-                    map.insert(k.clone(), Value::String(v.clone()));
-                }
-                Value::Object(map)
-            });
-
-            search_results.push(SemanticSearchResult {
-                id,
-                score,
-                metadata,
-            });
+            if let Some(doc) = store.get(&id) {
+                let text = doc.metadata.get("text").cloned();
+                let metadata_value = serde_json::to_value(&doc.metadata).ok();
+                search_results.push(SemanticSearchResult {
+                    id,
+                    score,
+                    text,
+                    metadata: metadata_value,
+                });
+            }
         }
 
         Ok(search_results)

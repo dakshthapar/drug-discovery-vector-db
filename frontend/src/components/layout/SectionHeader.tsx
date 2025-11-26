@@ -1,12 +1,14 @@
 import React from 'react';
 import { theme } from '../../styles/theme';
+import { LucideIcon } from 'lucide-react';
 
 interface SectionHeaderProps {
     title: string;
     subtitle?: string;
+    icon?: LucideIcon;
 }
 
-const SectionHeader: React.FC<SectionHeaderProps> = ({ title, subtitle }) => {
+const SectionHeader: React.FC<SectionHeaderProps> = ({ title, subtitle, icon: Icon }) => {
     return (
         <div style={{ marginBottom: theme.spacing.md }}>
             <h2 style={{
@@ -14,7 +16,11 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({ title, subtitle }) => {
                 fontWeight: theme.typography.weight.semibold,
                 color: theme.colors.text.primary,
                 margin: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: theme.spacing.sm,
             }}>
+                {Icon && <Icon size={20} style={{ color: theme.colors.primary.base }} />}
                 {title}
             </h2>
             {subtitle && (

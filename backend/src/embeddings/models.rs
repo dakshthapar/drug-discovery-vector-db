@@ -73,6 +73,7 @@ pub struct SemanticSearchRequest {
 pub struct SemanticSearchResult {
     pub id: String,
     pub score: f32,
+    pub text: Option<String>,
     pub metadata: Option<Value>,
 }
 

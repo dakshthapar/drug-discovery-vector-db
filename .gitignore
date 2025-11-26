@@ -39,6 +39,7 @@ yarn-error.log*
 *.db
 *.sqlite
 *.log
+collections/
 
 # Jupyter
 .ipynb_checkpoints/

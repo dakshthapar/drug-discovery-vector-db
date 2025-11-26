@@ -7,16 +7,94 @@ impl SpecBuilder {
     pub fn build() -> ApiSpec {
         ApiSpec {
             service: "VectorDB".to_string(),
-            version: "1.0".to_string(),
+            version: "2.0".to_string(),
             endpoints: vec![
-                // POST /vectors
+                // Collection Management
+                EndpointSpec {
+                    name: "Create Collection".to_string(),
+                    method: "POST".to_string(),
+                    path: "/collections".to_string(),
+                    description: "Create a new collection with specified dimension.".to_string(),
+                    path_params: vec![],
+                    query_params: vec![],
+                    request_body: Some(json!({
+                        "name": "string",
+                        "dimension": "integer"
+                    })),
+                    response_body: Some(json!({
+                        "status": "created",
+                        "name": "string",
+                        "dimension": "integer"
+                    })),
+                    example_request: Some(json!({
+                        "name": "text_embeddings",
+                        "dimension": 768
+                    })),
+                    example_response: Some(json!({
+                        "status": "created",
+                        "name": "text_embeddings",
+                        "dimension": 768
+                    })),
+                },
+                EndpointSpec {
+                    name: "List Collections".to_string(),
+                    method: "GET".to_string(),
+                    path: "/collections".to_string(),
+                    description: "List all collections with their metadata.".to_string(),
+                    path_params: vec![],
+                    query_params: vec![],
+                    request_body: None,
+                    response_body: Some(json!({
+                        "collections": [{
+                            "name": "string",
+                            "dimension": "integer",
+                            "num_vectors": "integer",
+                            "created_at": "integer"
+                        }]
+                    })),
+                    example_request: None,
+                    example_response: Some(json!({
+                        "collections": [
+                            {
+                                "name": "default",
+                                "dimension": 3,
+                                "num_vectors": 10,
+                                "created_at": 1700000000
+                            }
+                        ]
+                    })),
+                },
+                EndpointSpec {
+                    name: "Delete Collection".to_string(),
+                    method: "DELETE".to_string(),
+                    path: "/collections/:name".to_string(),
+                    description: "Delete a collection by name.".to_string(),
+                    path_params: vec![ParamSpec {
+                        name: "name".to_string(),
+                        r#type: "string".to_string(),
+                        required: true,
+                        description: Some("The name of the collection to delete".to_string()),
+                    }],
+                    query_params: vec![],
+                    request_body: None,
+                    response_body: Some(json!({ "status": "deleted" })),
+                    example_request: None,
+                    example_response: Some(json!({ "status": "deleted" })),
+                },
+                
+                // Vector Operations
                 EndpointSpec {
                     name: "Insert Vector".to_string(),
                     method: "POST".to_string(),
                     path: "/vectors".to_string(),
-                    description: "Insert a new vector into the database.".to_string(),
+                    description: "Insert a new vector into a collection.".to_string(),
                     path_params: vec![],
-                    query_params: vec![],
+                    query_params: vec![ParamSpec {
+                        name: "collection".to_string(),
+                        r#type: "string".to_string(),
+                        required: false,
+                        description: Some("Collection name (defaults to 'default')".to_string()),
+                    }],
                     request_body: Some(json!({
                         "id": "string",
                         "vector": "float[]",
@@ -36,14 +114,18 @@ impl SpecBuilder {
                         "id": "vec1"
                     })),
                 },
-                // POST /vectors/bulk
                 EndpointSpec {
                     name: "Bulk Insert Vectors".to_string(),
                     method: "POST".to_string(),
                     path: "/vectors/bulk".to_string(),
                     description: "Insert multiple vectors in a single request.".to_string(),
                     path_params: vec![],
-                    query_params: vec![],
+                    query_params: vec![ParamSpec {
+                        name: "collection".to_string(),
+                        r#type: "string".to_string(),
+                        required: false,
+                        description: Some("Collection name (defaults to 'default')".to_string()),
+                    }],
                     request_body: Some(json!({
                         "items": [{
                             "id": "string",
@@ -68,14 +150,18 @@ impl SpecBuilder {
                         "errors": []
                     })),
                 },
-                // POST /search
                 EndpointSpec {
                     name: "Search Vectors".to_string(),
                     method: "POST".to_string(),
                     path: "/search".to_string(),
-                    description: "Search for k-nearest neighbors.".to_string(),
+                    description: "Search for k-nearest neighbors in a collection.".to_string(),
                     path_params: vec![],
-                    query_params: vec![],
+                    query_params: vec![ParamSpec {
+                        name: "collection".to_string(),
+                        r#type: "string".to_string(),
+                        required: false,
+                        description: Some("Collection name (defaults to 'default')".to_string()),
+                    }],
                     request_body: Some(json!({
                         "vector": "float[]",
                         "top_k": "integer",
@@ -86,6 +172,7 @@ impl SpecBuilder {
                         "results": [{
                             "id": "string",
                             "score": "float",
+                            "vector": "float[]",
                             "metadata": "object"
                         }],
                         "stats": { "elapsed_ms": "float" }
@@ -97,12 +184,16 @@ impl SpecBuilder {
                     })),
                     example_response: Some(json!({
                         "results": [
-                            { "id": "vec1", "score": 0.99, "metadata": {} }
+                            { 
+                                "id": "vec1", 
+                                "score": 0.99, 
+                                "vector": [0.1, 0.2, 0.3],
+                                "metadata": {} 
+                            }
                         ],
                         "stats": { "elapsed_ms": 1.2 }
                     })),
                 },
-                // GET /vectors/:id
                 EndpointSpec {
                     name: "Get Vector".to_string(),
                     method: "GET".to_string(),
@@ -114,7 +205,12 @@ impl SpecBuilder {
                         required: true,
                         description: Some("The ID of the vector to retrieve".to_string()),
                     }],
-                    query_params: vec![],
+                    query_params: vec![ParamSpec {
+                        name: "collection".to_string(),
+                        r#type: "string".to_string(),
+                        required: false,
+                        description: Some("Collection name (defaults to 'default')".to_string()),
+                    }],
                     request_body: None,
                     response_body: Some(json!({
                         "id": "string",
@@ -126,14 +222,18 @@ impl SpecBuilder {
                         "metadata": { "type": "test" }
                     })),
                 },
-                // GET /stats
                 EndpointSpec {
                     name: "Get Stats".to_string(),
                     method: "GET".to_string(),
                     path: "/stats".to_string(),
-                    description: "Get database statistics.".to_string(),
+                    description: "Get collection statistics.".to_string(),
                     path_params: vec![],
-                    query_params: vec![],
+                    query_params: vec![ParamSpec {
+                        name: "collection".to_string(),
+                        r#type: "string".to_string(),
+                        required: false,
+                        description: Some("Collection name (defaults to 'default')".to_string()),
+                    }],
                     request_body: None,
                     response_body: Some(json!({
                         "num_vectors": "integer",
@@ -147,31 +247,43 @@ impl SpecBuilder {
                         "mem_bytes_approx": 307200
                     })),
                 },
-                // POST /save
+                
+                // Persistence
                 EndpointSpec {
-                    name: "Save Snapshot".to_string(),
+                    name: "Save Collections".to_string(),
                     method: "POST".to_string(),
                     path: "/save".to_string(),
-                    description: "Trigger a manual snapshot save.".to_string(),
+                    description: "Save all collections to disk.".to_string(),
                     path_params: vec![],
                     query_params: vec![],
                     request_body: None,
-                    response_body: Some(json!({ "status": "saved" })),
+                    response_body: Some(json!({ 
+                        "status": "saved",
+                        "collections_saved": "integer"
+                    })),
                     example_request: None,
-                    example_response: Some(json!({ "status": "saved" })),
+                    example_response: Some(json!({ 
+                        "status": "saved",
+                        "collections_saved": 2
+                    })),
                 },
-                // POST /load
                 EndpointSpec {
-                    name: "Load Snapshot".to_string(),
+                    name: "Load Collections".to_string(),
                     method: "POST".to_string(),
                     path: "/load".to_string(),
-                    description: "Trigger a manual snapshot load.".to_string(),
+                    description: "Load all collections from disk.".to_string(),
                     path_params: vec![],
                     query_params: vec![],
                     request_body: None,
-                    response_body: Some(json!({ "status": "loaded" })),
+                    response_body: Some(json!({ 
+                        "status": "loaded",
+                        "collections_loaded": "integer"
+                    })),
                     example_request: None,
-                    example_response: Some(json!({ "status": "loaded" })),
+                    example_response: Some(json!({ 
+                        "status": "loaded",
+                        "collections_loaded": 2
+                    })),
                 },
             ],
         }
