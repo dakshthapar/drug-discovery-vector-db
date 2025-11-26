@@ -28,10 +28,6 @@ function NavLink({ to, children }: { to: string, children: React.ReactNode }) {
 }
 
 function NavBar() {
-    const location = useLocation();
-    // Don't show navbar on API Docs page as it has its own layout
-    if (location.pathname === '/api-docs') return null;
-
     return (
         <nav style={{
             padding: `${theme.spacing.md} ${theme.spacing.xl}`,

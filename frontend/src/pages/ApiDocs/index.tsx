@@ -26,7 +26,12 @@ const ApiDocs: React.FC = () => {
     }, {});
 
     return (
-        <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: theme.colors.background }}>
+        <div style={{
+            display: 'flex',
+            height: 'calc(100vh - 60px)', // Account for navbar height
+            overflow: 'hidden',
+            background: theme.colors.background
+        }}>
             {/* Sidebar */}
             <div style={{
                 width: '320px',
