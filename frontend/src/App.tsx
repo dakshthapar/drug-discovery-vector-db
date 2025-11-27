@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import Home from './pages/Home/index';
 import ApiDocs from './pages/ApiDocs';
 import { Embeddings } from './pages/Embeddings';
+import DrugDiscovery from './pages/DrugDiscovery';
 import { theme } from './styles/theme';
 import './App.css';
 
@@ -41,6 +42,7 @@ function NavBar() {
             <div style={{ display: 'flex', gap: theme.spacing.sm }}>
                 <NavLink to="/">Home</NavLink>
                 <NavLink to="/embeddings">Embeddings</NavLink>
+                <NavLink to="/drug-discovery">Drug Discovery</NavLink>
                 <NavLink to="/api-docs">API Explorer</NavLink>
             </div>
         </nav>
@@ -60,6 +62,7 @@ function App() {
                     <Routes>
                         <Route path="/" element={<Home />} />
                         <Route path="/embeddings" element={<Embeddings />} />
+                        <Route path="/drug-discovery" element={<DrugDiscovery />} />
                         <Route path="/api-docs" element={<ApiDocs />} />
                     </Routes>
                 </div>
