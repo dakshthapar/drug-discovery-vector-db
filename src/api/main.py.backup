@@ -1,5 +1,5 @@
 """
-FastAPI backend for Drug Discovery - Complete 3-Step System with Text Search
+FastAPI backend for Drug Discovery - Complete 3-Step System
 """
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,14 +10,16 @@ from pathlib import Path
 import traceback
 import pandas as pd
 
+# Add parent directory to path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from database.vector_db_client import VectorDBClient
 from embeddings.molecular_encoder import MolecularEncoder
 from api.drug_analysis import analyze_structural_features, suggest_drug_scaffolds
 
-app = FastAPI(title="Drug Discovery API", version="2.0.0")
+app = FastAPI(title="Drug Discovery API", version="1.0.0")
 
+# CORS middleware for frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://localhost:3000"],
@@ -26,9 +28,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize clients
 client = VectorDBClient()
 encoder = MolecularEncoder(method="morgan", dim=2048)
 
+# Load drug dataset for analysis
 try:
     drugs_df = pd.read_csv("data/drugs.csv")
     print(f"✓ Loaded {len(drugs_df)} drugs for analysis")
@@ -38,13 +42,13 @@ except Exception as e:
 
 
 # Pydantic models
-class TextSearchRequest(BaseModel):
-    query: str
+class DrugSearchRequest(BaseModel):
+    smiles: str
     top_k: int = 10
 
 
-class DrugSearchRequest(BaseModel):
-    smiles: str
+class DrugSearchByUseCaseRequest(BaseModel):
+    use_case: str
     top_k: int = 10
 
 
@@ -91,37 +95,30 @@ class ScaffoldSuggestion(BaseModel):
     indication: Optional[str] = None
 
 
-class CentroidInfo(BaseModel):
-    dimension: int
-    num_source_drugs: int
-    source_drug_names: List[str]
-    closest_drug: Optional[Dict[str, Any]] = None
-    note: str
-
-
 class ScaffoldSuggestionsResponse(BaseModel):
     suggestions: List[ScaffoldSuggestion]
     description: str
-    centroid_info: Optional[CentroidInfo] = None
 
+
+# Endpoints
 
 @app.get("/")
 def root():
     return {
-        "service": "Drug Discovery API - Text & Structure Search",
-        "version": "2.0.0",
+        "service": "Drug Discovery API - 3-Step System",
+        "version": "1.0.0",
         "status": "running",
         "features": [
-            "Text-based drug search",
-            "Structure-based similarity search",
-            "Structural analysis",
-            "Scaffold suggestions"
+            "Step 1: Structure-based search",
+            "Step 2: Structural analysis",
+            "Step 3: Scaffold suggestions"
         ]
     }
 
 
 @app.get("/health")
 def health_check():
+    """Check if backend and vector DB are healthy"""
     db_healthy = client.health_check()
     return {
         "api": "healthy",
@@ -132,97 +129,36 @@ def health_check():
 
 @app.get("/stats")
 def get_stats():
+    """Get drug database statistics"""
     try:
         stats = client.get_stats("drugs")
         collections = client.list_collections()
+        
         return {
             "collections": collections,
             "drugs_collection": stats,
             "drugs_in_csv": len(drugs_df)
         }
     except Exception as e:
+        print(f"Error in /stats: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/search/text", response_model=DrugSearchResponse)
-def search_by_text(request: TextSearchRequest):
-    """
-    Search for drugs by text description (indication, properties, use case)
-    
-    Examples: "pain relief", "diabetes", "high blood pressure"
-    """
-    try:
-        import time
-        start = time.time()
-        
-        print(f"\n[TEXT SEARCH] Query: '{request.query}'")
-        
-        if drugs_df.empty:
-            return DrugSearchResponse(query=request.query, results=[], total_found=0)
-        
-        # Search in indication field
-        query_lower = request.query.lower()
-        query_words = query_lower.split()
-        
-        # Score drugs by how many query words match
-        def score_drug(indication):
-            if pd.isna(indication):
-                return 0
-            indication_lower = indication.lower()
-            score = sum(1 for word in query_words if word in indication_lower)
-            # Boost if exact phrase match
-            if query_lower in indication_lower:
-                score += 2
-            return score
-        
-        drugs_df['match_score'] = drugs_df['indication'].apply(score_drug)
-        matching_drugs = drugs_df[drugs_df['match_score'] > 0].sort_values(
-            'match_score', ascending=False
-        )
-        
-        # Convert to DrugResult
-        results = []
-        for _, row in matching_drugs.head(request.top_k).iterrows():
-            max_score = len(query_words) + 2
-            similarity = min(row['match_score'] / max_score, 1.0)
-            
-            results.append(DrugResult(
-                id=row.get('drug_id', f"DRUG_{_}"),
-                name=row.get('name', 'Unknown'),
-                smiles=row.get('smiles', ''),
-                similarity=similarity,
-                distance=1 - similarity,
-                indication=row.get('indication')
-            ))
-        
-        search_time = (time.time() - start) * 1000
-        
-        print(f"[TEXT SEARCH] Found {len(results)} matches in {search_time:.2f}ms")
-        
-        return DrugSearchResponse(
-            query=request.query,
-            results=results,
-            total_found=len(results),
-            search_time_ms=search_time
-        )
-        
-    except Exception as e:
-        print(f"\n[ERROR] Text search failed: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 
 @app.post("/search/structure", response_model=DrugSearchResponse)
 def search_by_structure(request: DrugSearchRequest):
     """
-    Search for drugs similar to a query molecule structure (SMILES)
+    STEP 1: Search for drugs similar to a query molecule structure (SMILES)
     """
     try:
         import time
+        print(f"\n[SEARCH] Received request: {request.smiles[:50]}... (top_k={request.top_k})")
         start = time.time()
         
+        # Encode query molecule
         query_vector = encoder.encode(request.smiles)
+        
+        # Search in drugs collection
         results = client.search(
             query_vector=query_vector,
             top_k=request.top_k + 5,
@@ -230,11 +166,13 @@ def search_by_structure(request: DrugSearchRequest):
             collection="drugs"
         )
         
+        # Convert to response format and filter
         drug_results = []
         for result in results:
             distance = result['score']
             similarity = 1 - distance
             
+            # Skip if it's nearly identical (query drug itself)
             if distance < 0.01 or similarity > 0.99:
                 continue
                 
@@ -247,6 +185,7 @@ def search_by_structure(request: DrugSearchRequest):
                 indication=result['metadata'].get('indication')
             ))
         
+        # Sort by similarity (descending)
         drug_results.sort(key=lambda x: x.similarity, reverse=True)
         drug_results = drug_results[:request.top_k]
         
@@ -258,16 +197,23 @@ def search_by_structure(request: DrugSearchRequest):
             total_found=len(drug_results),
             search_time_ms=search_time
         )
+        
     except Exception as e:
+        print(f"\n[ERROR] Search failed: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 
 @app.post("/analyze/structure", response_model=StructuralAnalysisResponse)
 def analyze_structure(smiles_list: List[str]):
-    """Analyze structural features of molecules"""
+    """
+    STEP 2: Analyze structural features of a list of molecules
+    """
     try:
+        print(f"\n[ANALYSIS] Analyzing {len(smiles_list)} molecules...")
+        
         analysis = analyze_structural_features(smiles_list)
+        
         return StructuralAnalysisResponse(
             total_molecules=analysis["total_molecules"],
             avg_molecular_weight=analysis.get("avg_molecular_weight", 0),
@@ -277,22 +223,31 @@ def analyze_structure(smiles_list: List[str]):
             molecules_with_multiple_rings=analysis.get("molecules_with_multiple_rings", 0),
             common_features=analysis.get("common_features", {})
         )
+        
     except Exception as e:
+        print(f"\n[ERROR] Analysis failed: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
 
 @app.post("/suggest/scaffolds", response_model=ScaffoldSuggestionsResponse)
 def suggest_scaffolds(request: ScaffoldSuggestionsRequest):
-    """Suggest drug scaffolds based on query drugs"""
+    """
+    STEP 3: Suggest drug scaffolds based on query drugs
+    """
     try:
+        print(f"\n[SCAFFOLDS] Suggesting scaffolds based on {len(request.query_drugs)} query drugs...")
+        
         if drugs_df.empty:
             raise HTTPException(status_code=500, detail="Drug dataset not loaded")
         
+        # Convert QueryDrug models to dicts
         query_drugs_dict = [{"name": d.name, "smiles": d.smiles} for d in request.query_drugs]
+        
+        # Convert dataframe to list of dicts
         all_drugs = drugs_df.to_dict('records')
         
-        result = suggest_drug_scaffolds(
+        suggestions = suggest_drug_scaffolds(
             query_drugs=query_drugs_dict,
             all_drugs=all_drugs,
             encoder=encoder,
@@ -306,37 +261,73 @@ def suggest_scaffolds(request: ScaffoldSuggestionsRequest):
                 similarity_to_centroid=s.get('similarity_to_centroid', 0),
                 indication=s.get('indication')
             )
-            for s in result["suggestions"]
+            for s in suggestions
         ]
-        
-        # Format centroid info
-        centroid_data = result.get("centroid_info")
-        centroid_info = None
-        description = f"Centroid calculated from {len(request.query_drugs)} query drugs"
-        
-        if centroid_data:
-            centroid_info = CentroidInfo(**centroid_data)
-            if centroid_data.get('closest_drug'):
-                closest = centroid_data['closest_drug']
-                description += f". Closest real drug: {closest['name']} ({closest['similarity']*100:.1f}% similar)"
         
         return ScaffoldSuggestionsResponse(
             suggestions=scaffold_list,
-            description=description,
-            centroid_info=centroid_info
+            description=f"Drugs similar to the centroid of {len(request.query_drugs)} query drugs"
         )
+        
     except Exception as e:
+        print(f"\n[ERROR] Scaffold suggestion failed: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Scaffold suggestion failed: {str(e)}")
+
+
+@app.post("/search/use-case", response_model=DrugSearchResponse)
+def search_by_use_case(request: DrugSearchByUseCaseRequest):
+    """
+    Search for drugs by medical use case / indication
+    """
+    try:
+        import time
+        start = time.time()
+        
+        if drugs_df.empty:
+            return DrugSearchResponse(query=request.use_case, results=[], total_found=0)
+        
+        # Simple text matching in indication field
+        use_case_lower = request.use_case.lower()
+        matching_drugs = drugs_df[
+            drugs_df['indication'].fillna('').str.lower().str.contains(use_case_lower)
+        ]
+        
+        # Convert to DrugResult format
+        results = []
+        for _, row in matching_drugs.head(request.top_k).iterrows():
+            results.append(DrugResult(
+                id=row.get('drug_id', f"DRUG_{_}"),
+                name=row.get('name', 'Unknown'),
+                smiles=row.get('smiles', ''),
+                similarity=1.0,
+                distance=0.0,
+                indication=row.get('indication')
+            ))
+        
+        search_time = (time.time() - start) * 1000
+        
+        return DrugSearchResponse(
+            query=request.use_case,
+            results=results,
+            total_found=len(results),
+            search_time_ms=search_time
+        )
+        
+    except Exception as e:
+        print(f"Error in /search/use-case: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 
 if __name__ == "__main__":
     import uvicorn
     print("\n" + "="*60)
-    print("🚀 Drug Discovery API - Text & Structure Search")
+    print("🚀 Starting Drug Discovery API - 3-Step System")
     print("="*60)
-    print("\nAPI: http://localhost:8000")
-    print("Docs: http://localhost:8000/docs")
+    print("\nAPI will be available at: http://localhost:8000")
+    print("Docs at: http://localhost:8000/docs")
+    print("\nMake sure Rust vector DB is running at http://localhost:8080")
     print("="*60 + "\n")
     
     uvicorn.run(app, host="0.0.0.0", port=8000)
